@@ -1,0 +1,75 @@
+activities.test.article test
+============================
+
+Start this test like so:
+./bin/test -s activities.test.article -t tests.txt
+
+
+Hacky patch of logging facility to display in doctest
+    >>> from activities.runtime.runtime import log
+    >>> from pprint import pprint
+    >>> log.info = pprint
+
+Fake sys.stdin.readline to use for automated tests
+    >>> import sys
+    >>> orig_stdin = sys.stdin
+    >>> fake_stdin = _FakeInput(['article 1', 'main body 1',\
+    ...                         'article 2', 'main body 2'])
+    >>> sys.stdin = fake_stdin
+
+Interact does not like fake stdin...
+#    >>> sys.stdin = orig_stdin
+#    >>> interact( locals() )
+#    >>> sys.stdin = fake_stdin
+
+    >>> from activities.test.article.model import model
+    >>> from activities.runtime.runtime import ActivityRuntime
+    >>> ar = ActivityRuntime(model['main'])
+
+Starting the activity
+    >>> ar.start()
+    >>> ar.ts()
+    1: <...Token...>, data: {}
+
+Creating the template
+    >>> ar.next()
+    'executing: "a"'
+
+    >>> ar.ts()
+    2: <...Token...>, data: {'template': <...Article...>}
+
+ForkNode duplicates token - data is a reference to the same object.
+    >>> ar.next()
+    >>> ar.ts()
+    3: <...Token...>, data: {'template': <...Article...>}
+    4: <...Token...>, data: {'template': <...Article...>}
+
+Action with "write-article" execution copies the template and reads the title
+and body from fake-stdin
+    >>> ar.next()
+    article 1
+    main body 1
+    'executing: "c"'
+    article 2
+    main body 2
+    'executing: "d"'
+
+    >>> ar.ts()
+    5: <...Token...>, data: {'...': <...Article...>}
+    6: <...Token...>, data: {'...': <...Article...>}
+
+Action with "merge-article" execution merges both articles. Here they are
+simply put into a list.
+    >>> ar.next()
+    'executing: "e"'
+
+    >>> ar.ts()
+    7: <...Token...>, data: {'merged_article': [<...Article...>, <...Article...>]}
+
+Reaching ActivityFinalNode, returning output_parameter
+    >>> ar.next()
+    'stopping activity'
+    {'merged_article': [<...Article...>, <...Article...>]}
+
+That's all.
+    >>> ar.ts()
